@@ -20,6 +20,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Chatbot API - OpenAI powered multilingual legal assistant
   app.post("/api/chat", async (req, res) => {
+    console.log("Checking for API Key on Vercel:", process.env.OPENAI_API_KEY);
     try {
       const { message, language } = req.body;
 
