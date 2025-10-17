@@ -16,13 +16,14 @@ const openai = new OpenAI({
 
 const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export function registerRoutes(app: Express): void {
   
   // Chatbot API - OpenAI powered multilingual legal assistant
   app.post("/api/chat", async (req, res) => {
     console.log("Checking for API Key on Vercel:", process.env.OPENAI_API_KEY);
     try {
       const { message, language } = req.body;
+      const userLanguage = language || 'English'; // Default to English if not provided
 
       if (!message) {
         return res.status(400).json({ error: "Message is required" });
@@ -37,7 +38,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const systemPrompt = `You are NYAYA MITRA AI, India's premier AI legal assistant. You provide accurate legal guidance based on Indian law including Constitution, IPC, CrPC, and other Indian acts. 
 
-IMPORTANT: Respond in ${language}. If the language is not English, translate your entire response to ${language} while maintaining legal accuracy.
+IMPORTANT: Respond in ${userLanguage}. If the language is not English, translate your entire response to ${userLanguage} while maintaining legal accuracy.
 
 Guidelines:
 - Provide clear, accurate information about Indian laws
@@ -136,7 +137,9 @@ Provide a JSON response with:
         });
 
         const openaiContent = openaiResponse.choices[0]?.message?.content || '{}';
-        const jsonMatch = openaiContent.match(/\{[\s\S]*\}/);
+        // Improved JSON extraction: Remove markdown code blocks if present
+        const cleanOpenAIContent = openaiContent.replace(/```json\n?|\n?```/g, '').trim();
+        const jsonMatch = cleanOpenAIContent.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const openaiResult = JSON.parse(jsonMatch[0]);
           // Validate required fields
@@ -187,12 +190,14 @@ Provide a JSON response with:
                 mimeType: mimeType
               }
             },
-            prompt
+            { text: prompt }  // Fixed: Wrap prompt in { text: }
           ]
         });
 
         const geminiContent = result.text || '{}';
-        const jsonMatch = geminiContent.match(/\{[\s\S]*\}/);
+        // Improved JSON extraction: Remove markdown code blocks if present
+        const cleanGeminiContent = geminiContent.replace(/```json\n?|\n?```/g, '').trim();
+        const jsonMatch = cleanGeminiContent.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const geminiResult = JSON.parse(jsonMatch[0]);
           // Validate required fields
@@ -216,7 +221,4 @@ Provide a JSON response with:
       res.status(500).json({ error: "Failed to verify document" });
     }
   });
-
-  const httpServer = createServer(app);
-  return httpServer;
 }
