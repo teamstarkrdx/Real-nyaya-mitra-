@@ -1,13 +1,13 @@
 {
-  "version": 2,
   "functions": {
     "server/index.ts": {
-      "runtime": "vercel-node@2.0.1"
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
     }
   },
   "rewrites": [
     {
-      "source": "/api/:path*",
+      "source": "/(.*)",
       "destination": "/server/index.ts"
     }
   ]
