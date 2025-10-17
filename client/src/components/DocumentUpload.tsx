@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { useMutation } from '@tanstack/react-query';
 
 interface VerificationResult {
   api: 'OpenAI' | 'Gemini';
@@ -21,9 +22,33 @@ interface VerificationResult {
 
 export default function DocumentUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [results, setResults] = useState<VerificationResult[] | null>(null);
   const [dragActive, setDragActive] = useState(false);
+
+  const verifyMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('document', file);
+      
+      const response = await fetch('/api/verify-document', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error('Verification failed');
+      }
+      
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      setResults(data.results);
+    },
+    onError: (error) => {
+      console.error('Verification error:', error);
+      setResults(null);
+    }
+  });
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -41,51 +66,21 @@ export default function DocumentUpload() {
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setSelectedFile(e.dataTransfer.files[0]);
+      setResults(null);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
+      setResults(null);
     }
   };
 
   const handleVerify = async () => {
-    setIsVerifying(true);
-    setResults(null);
-
-    setTimeout(() => {
-      const mockResults: VerificationResult[] = [
-        {
-          api: 'OpenAI',
-          status: 'Real',
-          confidence: 92,
-          factors: {
-            format: true,
-            positioning: true,
-            characters: true,
-            blur: false,
-            colors: true,
-            keywords: true
-          }
-        },
-        {
-          api: 'Gemini',
-          status: 'Real',
-          confidence: 88,
-          factors: {
-            format: true,
-            positioning: true,
-            characters: true,
-            blur: true,
-            colors: true,
-            keywords: false
-          }
-        }
-      ];
-      setResults(mockResults);
-      setIsVerifying(false);
-    }, 2000);
+    if (selectedFile) {
+      verifyMutation.mutate(selectedFile);
+    }
   };
 
   const matchingPercentage = results
@@ -98,10 +93,10 @@ export default function DocumentUpload() {
         <div className="text-center mb-12">
           <Badge variant="outline" className="mb-4">Document Verification</Badge>
           <h2 className="text-3xl md:text-4xl font-bold font-heading mb-4">
-            Verify Your Documents
+            AI Document Verification
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            AI-powered document authentication using OpenAI and Gemini
+            Dual AI-powered authentication using OpenAI and Gemini
           </p>
         </div>
 
@@ -147,11 +142,11 @@ export default function DocumentUpload() {
                   </div>
                   <Button
                     onClick={handleVerify}
-                    disabled={isVerifying}
+                    disabled={verifyMutation.isPending}
                     data-testid="button-verify-document"
                     className="hover-elevate active-elevate-2"
                   >
-                    {isVerifying ? (
+                    {verifyMutation.isPending ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Verifying...
@@ -225,7 +220,7 @@ export default function DocumentUpload() {
                   <p className="text-sm text-muted-foreground mb-2">Overall Match</p>
                   <p className="text-4xl font-bold">{matchingPercentage}%</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Both AI models agree on document authenticity
+                    Both AI models analyzed the document
                   </p>
                 </CardContent>
               </Card>

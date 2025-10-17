@@ -1,22 +1,20 @@
 import { useState } from 'react';
-import { Menu, X, Search, Moon, Sun } from 'lucide-react';
+import { Menu, X, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface HeaderProps {
   onNavigate?: (section: string) => void;
-  onSearch?: () => void;
   darkMode?: boolean;
   onToggleDarkMode?: () => void;
 }
 
-export default function Header({ onNavigate, onSearch, darkMode, onToggleDarkMode }: HeaderProps) {
+export default function Header({ onNavigate, darkMode, onToggleDarkMode }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const menuItems = [
     'Home',
     'Legal Rights',
     'AI Legal Chat',
-    'Law Search',
     'Legal Guidance',
     'Free Legal Aid',
     'Contact Us',
@@ -47,15 +45,6 @@ export default function Header({ onNavigate, onSearch, darkMode, onToggleDarkMod
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onSearch}
-            data-testid="button-search"
-            className="hover-elevate active-elevate-2"
-          >
-            <Search className="h-5 w-5" />
-          </Button>
           <Button
             size="icon"
             variant="ghost"

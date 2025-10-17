@@ -13,7 +13,6 @@ import LanguageSelector from '@/components/LanguageSelector';
 import RightsModal from '@/components/RightsModal';
 import DocumentUpload from '@/components/DocumentUpload';
 import FreeLegalAid from '@/components/FreeLegalAid';
-import LawSearch from '@/components/LawSearch';
 import CategoryDetailModal from '@/components/CategoryDetailModal';
 
 export default function Home() {
@@ -33,7 +32,24 @@ export default function Home() {
   }, [darkMode]);
 
   const handleNavigate = (section: string) => {
-    const element = document.getElementById(section);
+    const sectionMap: { [key: string]: string } = {
+      'home': 'hero',
+      'legal-rights': 'legal-rights',
+      'ai-legal-chat': 'chatbot',
+      'legal-guidance': 'legal-guidance',
+      'free-legal-aid': 'free-legal-aid',
+      'contact-us': 'contact-us',
+      'about-us': 'about-us'
+    };
+
+    const targetId = sectionMap[section] || section;
+    
+    if (targetId === 'chatbot') {
+      handleStartChat();
+      return;
+    }
+
+    const element = document.getElementById(targetId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
@@ -68,32 +84,41 @@ export default function Home() {
       
       <Header
         onNavigate={handleNavigate}
-        onSearch={() => handleNavigate('law-search')}
         darkMode={darkMode}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
       />
 
       <main>
-        <Hero
-          onStartChat={handleStartChat}
-          onViewRights={() => setShowRightsModal(true)}
-        />
+        <div id="hero">
+          <Hero
+            onStartChat={handleStartChat}
+            onViewRights={() => setShowRightsModal(true)}
+          />
+        </div>
 
-        <LegalGuidanceHub onExploreMore={handleExploreMore} />
+        <div id="legal-guidance">
+          <LegalGuidanceHub onExploreMore={handleExploreMore} />
+        </div>
 
         <HowWeHelp />
 
-        <RightsPreview onViewAll={() => setShowRightsModal(true)} />
+        <div id="legal-rights">
+          <RightsPreview onViewAll={() => setShowRightsModal(true)} />
+        </div>
 
         <DocumentUpload />
 
-        <FreeLegalAid />
+        <div id="free-legal-aid">
+          <FreeLegalAid />
+        </div>
 
-        <LawSearch />
+        <div id="contact-us">
+          <Contact />
+        </div>
 
-        <Contact />
-
-        <Footer />
+        <div id="about-us">
+          <Footer />
+        </div>
       </main>
 
       <ChatbotButton
