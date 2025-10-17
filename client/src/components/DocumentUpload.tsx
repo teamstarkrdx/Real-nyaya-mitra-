@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, FileText, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ interface VerificationResult {
 export default function DocumentUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [results, setResults] = useState<VerificationResult[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
   const verifyMutation = useMutation({
@@ -35,18 +36,27 @@ export default function DocumentUpload() {
         body: formData
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Verification failed');
+        throw new Error(data.error || 'Verification failed');
       }
       
-      return await response.json();
+      return data;
     },
     onSuccess: (data) => {
-      setResults(data.results);
+      if (data.results && data.results.length === 2) {
+        setResults(data.results);
+        setError(null);
+      } else {
+        setError("Incomplete verification results received");
+        setResults(null);
+      }
     },
-    onError: (error) => {
-      console.error('Verification error:', error);
+    onError: (err: Error) => {
+      setError(err.message || "Verification failed. Please try again.");
       setResults(null);
+      setSelectedFile(null);
     }
   });
 
@@ -67,6 +77,7 @@ export default function DocumentUpload() {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setSelectedFile(e.dataTransfer.files[0]);
       setResults(null);
+      setError(null);
     }
   };
 
@@ -74,11 +85,13 @@ export default function DocumentUpload() {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
       setResults(null);
+      setError(null);
     }
   };
 
   const handleVerify = async () => {
     if (selectedFile) {
+      setError(null);
       verifyMutation.mutate(selectedFile);
     }
   };
@@ -155,6 +168,16 @@ export default function DocumentUpload() {
                       'Verify Document'
                     )}
                   </Button>
+                </div>
+              )}
+
+              {error && (
+                <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-destructive">Verification Failed</p>
+                    <p className="text-sm text-destructive/80 mt-1">{error}</p>
+                  </div>
                 </div>
               )}
             </CardContent>

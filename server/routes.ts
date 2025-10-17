@@ -27,6 +27,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Message is required" });
       }
 
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ 
+          error: "OpenAI API key not configured",
+          response: "The chatbot service is not properly configured. Please contact support." 
+        });
+      }
+
       const systemPrompt = `You are NYAYA MITRA AI, India's premier AI legal assistant. You provide accurate legal guidance based on Indian law including Constitution, IPC, CrPC, and other Indian acts. 
 
 IMPORTANT: Respond in ${language}. If the language is not English, translate your entire response to ${language} while maintaining legal accuracy.
@@ -70,12 +77,20 @@ Always maintain accuracy and cite Indian legal provisions when applicable.`;
         return res.status(400).json({ error: "No file uploaded" });
       }
 
+      // Validate API keys
+      if (!process.env.OPENAI_API_KEY || !process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ 
+          error: "Verification service not configured. Both OpenAI and Gemini API keys are required." 
+        });
+      }
+
       const fileBuffer = req.file.buffer;
       const base64Image = fileBuffer.toString('base64');
       const mimeType = req.file.mimetype;
 
+      const results = [];
+
       // OpenAI Vision Analysis
-      let openaiResult;
       try {
         const openaiResponse = await openai.chat.completions.create({
           model: "gpt-4o-mini",
@@ -121,22 +136,24 @@ Provide a JSON response with:
 
         const openaiContent = openaiResponse.choices[0]?.message?.content || '{}';
         const jsonMatch = openaiContent.match(/\{[\s\S]*\}/);
-        openaiResult = jsonMatch ? JSON.parse(jsonMatch[0]) : {
-          status: "Real",
-          confidence: 85,
-          factors: { format: true, positioning: true, characters: true, blur: false, colors: true, keywords: true }
-        };
+        if (jsonMatch) {
+          const openaiResult = JSON.parse(jsonMatch[0]);
+          // Validate required fields
+          if (!openaiResult.status || typeof openaiResult.confidence !== 'number' || !openaiResult.factors) {
+            throw new Error("Invalid OpenAI response structure");
+          }
+          results.push({ api: "OpenAI", ...openaiResult });
+        } else {
+          throw new Error("Invalid OpenAI response format");
+        }
       } catch (error) {
         console.error("OpenAI verification error:", error);
-        openaiResult = {
-          status: "Real",
-          confidence: 85,
-          factors: { format: true, positioning: true, characters: true, blur: false, colors: true, keywords: true }
-        };
+        return res.status(500).json({ 
+          error: "OpenAI verification failed. Please try again." 
+        });
       }
 
       // Gemini Vision Analysis
-      let geminiResult;
       try {
         const prompt = `Analyze this document image for authenticity. Check for:
 1. Document format and structure
@@ -175,26 +192,24 @@ Provide a JSON response with:
 
         const geminiContent = result.text || '{}';
         const jsonMatch = geminiContent.match(/\{[\s\S]*\}/);
-        geminiResult = jsonMatch ? JSON.parse(jsonMatch[0]) : {
-          status: "Real",
-          confidence: 88,
-          factors: { format: true, positioning: true, characters: true, blur: true, colors: true, keywords: false }
-        };
+        if (jsonMatch) {
+          const geminiResult = JSON.parse(jsonMatch[0]);
+          // Validate required fields
+          if (!geminiResult.status || typeof geminiResult.confidence !== 'number' || !geminiResult.factors) {
+            throw new Error("Invalid Gemini response structure");
+          }
+          results.push({ api: "Gemini", ...geminiResult });
+        } else {
+          throw new Error("Invalid Gemini response format");
+        }
       } catch (error) {
         console.error("Gemini verification error:", error);
-        geminiResult = {
-          status: "Real",
-          confidence: 88,
-          factors: { format: true, positioning: true, characters: true, blur: true, colors: true, keywords: false }
-        };
+        return res.status(500).json({ 
+          error: "Gemini verification failed. Please try again." 
+        });
       }
 
-      res.json({
-        results: [
-          { api: "OpenAI", ...openaiResult },
-          { api: "Gemini", ...geminiResult }
-        ]
-      });
+      res.json({ results });
     } catch (error) {
       console.error("Document verification error:", error);
       res.status(500).json({ error: "Failed to verify document" });
